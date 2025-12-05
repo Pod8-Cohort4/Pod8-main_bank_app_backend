@@ -6,33 +6,33 @@ on:
       - main
 
 jobs:
-  # OWASP-ependency-Check:
-  #   name: Dependency-Check
-  #   runs-on: ubuntu-latest
+  OWASP-ependency-Check:
+    name: Dependency-Check
+    runs-on: ubuntu-latest
     
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v4
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-  #     - name: SetUp JDK 21
-  #       uses: actions/setup-java@v4
-  #       with:
-  #         distribution: 'zulu' # See 'Supported distributions' for available options
-  #         java-version: '21'
+      - name: SetUp JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu' # See 'Supported distributions' for available options
+          java-version: '21'
 
 
-  #     - name: Dependency check lib installation
-  #       run: | 
-  #            mvn org.owasp:dependency-check-maven:check -DnvdApiKey=${{ secrets.NVD_API_KEY_01 }}
-  #            ls -la ./target
+      - name: Dependency check lib installation
+        run: | 
+             mvn org.owasp:dependency-check-maven:check -DnvdApiKey=${{ secrets.NVD_API_KEY_01 }}
+             ls -la ./target
 
-  #            cat ./target/dependency-check-report.csv
+             cat ./target/dependency-check-report.csv
              
 
-  #     - name: Upload to DefectDojo
-  #       run: |
-  #          chmod +x  dependencycheck-defectdojoupload.sh
-  #          sh ./dependencycheck-defectdojoupload.sh
+      - name: Upload to DefectDojo
+        run: |
+           chmod +x  dependencycheck-defectdojoupload.sh
+           sh ./dependencycheck-defectdojoupload.sh
 
   build:
     name: Build
