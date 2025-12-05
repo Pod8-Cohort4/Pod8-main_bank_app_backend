@@ -1,13 +1,11 @@
 
+# 
 name: Bank Backend Pipeline.
 
 on:
   push:
     branches:
       - main
-  # pull_request:
-  #   branches:
-  #     - cicd
 
 jobs:
   Continues-Integration_build_and_push:
@@ -25,6 +23,18 @@ jobs:
         repository: digitalwitchdemo/main_bank_app_backend
         ref: main
 
+    # ---------------------------------------------------
+    # 🔥 ADD MAVEN BUILD HERE (Fixes your CI failure)
+    # ---------------------------------------------------
+    - name: Set up JDK 17
+      uses: actions/setup-java@v3
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Build Maven project (skip tests)
+      run: mvn clean install -DskipTests
+    # ---------------------------------------------------
 
     - name: Log in to awscli
       uses: aws-actions/configure-aws-credentials@v3
@@ -32,7 +42,6 @@ jobs:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: us-east-1
-
 
     - name: Build container image
       run: docker build -t bank-app-backend:latest .
@@ -46,7 +55,6 @@ jobs:
     
     - name: Push image to ECR
       run: docker push ${{ vars.ECR_REPO }}/bank-backendapi:${{ github.run_number }}
-
 
     - name: Clean up Docker image locally
       run: |
@@ -80,4 +88,3 @@ jobs:
          git add bank-project/backendapi.yaml
          git commit -m "Update. backendapi image to version ${{ github.run_number }}"
          git push origin main
-        
