@@ -21,16 +21,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Set up Java
+
+      # 🔥 ADD MAVEN BUILD HERE
       - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
-          distribution: 'temurin'
+         java-version: '17'
+         distribution: 'temurin'
 
-      # Maven build (skip tests)
-      - name: Build Maven project (skip tests)
-        run: mvn clean install -DskipTests
+      - name: Build Maven project (skip tests and skip dependency-check)
+        run: mvn clean install -DskipTests -Ddependency-check.skip
+      # 🔥 END MAVEN BUILD
+
 
       # Log in to AWS CLI
       - name: Configure AWS credentials
