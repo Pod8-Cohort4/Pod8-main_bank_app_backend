@@ -4,63 +4,147 @@ on:
   push:
     branches:
       - main
-  # pull_request:
-  #   branches:
-  #     - cicd
 
 jobs:
   Continues-Integration_build_and_push:
     runs-on: ubuntu-latest
-    env:
-      REGISTRY_NAME: ${{ secrets.REGISTRY_NAME }}
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      AWS_REGION: us-east-1
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-
-
-      # 🔥 ADD MAVEN BUILD HERE
-      - name: Set up JDK 17
-        uses: actions/setup-java@v3
         with:
-         java-version: '17'
-         distribution: 'temurin'
+          repository: /Pod8-Cohort4/Pod8-main_bank_app_backend
+          ref: main
 
-      - name: Build Maven project (skip tests and skip dependency-check)
-        run: mvn clean install -DskipTests -Ddependency-check.skip
-      # 🔥 END MAVEN BUILD
-
-
-      # Log in to AWS CLI
-      - name: Configure AWS credentials
+      - name: Log in to awscli
         uses: aws-actions/configure-aws-credentials@v3
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      # Build Docker image
-      - name: Build Docker image
-        run: docker build -t bank-app-backend:latest .
+      - name: Build container image
+        run: docker build -t bank-app-backendapi:latest .
 
-      # Log in to ECR
-      - name: Log in to ECR
+      - name: Log in to ECR with short-lived credentials
         run: |
-          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${{ secrets.ECR_REPO }}
+          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${{ vars.ECR_REPO }}
 
-      # Tag Docker image
       - name: Tag Docker image
-        run: docker tag bank-app-backend:latest ${{ secrets.ECR_REPO }}/bank-backendapi:${{ github.run_number }}
+        run: docker tag bank-app-backendapi:latest ${{ vars.ECR_REPO }}/bank-backendapi:${{ github.run_number }}
 
-      # Push Docker image to ECR
       - name: Push image to ECR
-        run: docker push ${{ secrets.ECR_REPO }}/bank-backendapi:${{ github.run_number }}
+        run: docker push ${{ vars.ECR_REPO }}/bank-backendapi:${{ github.run_number }}
 
-      # Clean up Docker images locally
       - name: Clean up Docker image locally
         run: |
           docker rmi bank-app-backend:latest
-          docker rmi ${{ secrets.ECR_REPO }}/bank-backendapi:${{ github.run_number }}
+          docker rmi ${{ vars.ECR_REPO }}/bank-backendapi:${{ github.run_number }}
+
+      - name: Clean up GitHub repo on runner
+        run: rm -rf ./*
+
+  Continues-Update_k8s_manifest:
+    runs-on: ubuntu-latest
+    needs: Continues-Integration_build_and_push
+
+    steps:
+      # Checkout the manifests repo
+      - name: Checkout Kubernetes manifest repo
+        uses: actions/checkout@v3
+        with:
+          repository: Pod8-Cohort4/Pod8-kubernetes-manifest
+          ref: main
+          persist-credentials: false  # Important: disables using github-actions bot token
+
+      # Configure Git
+      - name: Configure Git
+        run: |
+          git config --global user.email "pod8cohort4@gmail.com"
+          git config --global user.name "pod8"
+
+      # Update image tag
+      - name: Update backend image tag
+        run: |
+          sed -i "s+${{ vars.ECR_REPO }}/bank-backendapi:.*+${{ vars.ECR_REPO }}/bank-backendapi:${{ github.run_number }}+g" bank-project/backendapi.yaml
+          git add bank-project/backendapi.yaml
+          git commit -m "Update backend image to version ${{ github.run_number }}" || echo "No changes to commit"
+
+      # Push changes using PAT
+      - name: Push updated manifest
+        env:
+          GIT_USERNAME: ${{ secrets.GIT_USERNAME }}
+          GIT_PASSWORD: ${{ secrets.GIT_PASSWORD }}
+        run: |
+          git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/Pod8-Cohort4/Pod8-kubernetes-manifest.git main
+
+          
+
+
+
+# name: Bank Backend Pipeline
+
+# on:
+#   push:
+#     branches:
+#       - main
+#   # pull_request:
+#   #   branches:
+#   #     - cicd
+
+# jobs:
+#   Continues-Integration_build_and_push:
+#     runs-on: ubuntu-latest
+#     env:
+#       REGISTRY_NAME: ${{ secrets.REGISTRY_NAME }}
+#       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#       AWS_REGION: us-east-1
+
+#     steps:
+#       - name: Checkout repository
+#         uses: actions/checkout@v3
+
+
+#       # 🔥 ADD MAVEN BUILD HERE
+#       - name: Set up JDK 17
+#         uses: actions/setup-java@v3
+#         with:
+#          java-version: '17'
+#          distribution: 'temurin'
+
+#       - name: Build Maven project (skip tests and skip dependency-check)
+#         run: mvn clean install -DskipTests -Ddependency-check.skip
+#       # 🔥 END MAVEN BUILD
+
+
+#       # Log in to AWS CLI
+#       - name: Configure AWS credentials
+#         uses: aws-actions/configure-aws-credentials@v3
+#         with:
+#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#           aws-region: us-east-1
+
+#       # Build Docker image
+#       - name: Build Docker image
+#         run: docker build -t bank-app-backend:latest .
+
+#       # Log in to ECR
+#       - name: Log in to ECR
+#         run: |
+#           aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${{ secrets.ECR_REPO }}
+
+#       # Tag Docker image
+#       - name: Tag Docker image
+#         run: docker tag bank-app-backend:latest ${{ secrets.ECR_REPO }}/bank-backendapi:${{ github.run_number }}
+
+#       # Push Docker image to ECR
+#       - name: Push image to ECR
+#         run: docker push ${{ secrets.ECR_REPO }}/bank-backendapi:${{ github.run_number }}
+
+#       # Clean up Docker images locally
+#       - name: Clean up Docker image locally
+#         run: |
+#           docker rmi bank-app-backend:latest
+#           docker rmi ${{ secrets.ECR_REPO }}/bank-backendapi:${{ github.run_number }}
